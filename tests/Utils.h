@@ -16,12 +16,18 @@ struct TestException
     {}
 };
 
+typedef std::function<void(void)> TestCaseFunc;
+struct TestCase
+{
+    std::string m_name;
+    TestCaseFunc m_func;
+};
+
 #define TC_REQUIRE(EXPR) \
 if (!(EXPR))\
 {\
     throw TestException(__FILE__, __LINE__); \
 }
-
 
 #define TC_REQUIRE_NO_THROW(EXPR) \
 try\
@@ -50,7 +56,10 @@ catch (...)\
     }\
 }
 
-time_t timeFromString(const std::string& str)
+#define TEST_CASE(NAME)\
+    { #NAME, NAME }
+
+static time_t timeFromString(const std::string& str)
 {
     struct tm timeStruct = {0};
     strptime(str.c_str(), "%Y-%m-%d %H:%M:%S", &timeStruct);
@@ -74,8 +83,8 @@ typedef std::list<RateEntity> RateList;
 
 static void fillPOSTransactionManager(
     POSTransactionManager& mng,
-    const std::string& baseCurrency,
-    const std::string& currency,
+    const std::string& currency1,
+    const std::string& currency2,
     const RateList& rateList)
 {
     Result res;
@@ -83,11 +92,11 @@ static void fillPOSTransactionManager(
     {
         if (rate.m_toSet)
         {
-            res = mng.addExchangeRate(baseCurrency, currency, rate.m_from, rate.m_to, rate.m_rate);
+            res = mng.addExchangeRate(currency1, currency2, rate.m_from, rate.m_to, rate.m_rate);
         }
         else
         {
-            res = mng.addExchangeRate(baseCurrency, currency, rate.m_from, rate.m_rate);
+            res = mng.addExchangeRate(currency1, currency2, rate.m_from, rate.m_rate);
         }
         TC_REQUIRE(Result::SUCCESS == res);
     }

@@ -2,8 +2,13 @@ cmake_minimum_required(VERSION 2.6.0)
 
 project(exchange.rate C CXX)
 
+set(COVERAGE 1)
+
 # set compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O0 -g -Wall -Werror")
+if(COVERAGE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage -fPIC")
+endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
@@ -24,3 +29,5 @@ endforeach()
 add_executable(${PROJECT_NAME} ${SRC_ALL})
 # tests
 add_executable(${PROJECT_NAME}.test ${TEST_SRC_ALL})
+
+#find . -name "*.gcda" -print0 | xargs -0 rm

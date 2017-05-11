@@ -5,98 +5,12 @@
 #include <tuple>
 
 #include <POSTransaction.h>
-
+#include "Utils.h"
 
 namespace pos
 {
 namespace test
 {
-
-struct TestException
-{
-    const char* m_file;
-    int32_t m_line;
-    TestException(const char* file, const int32_t line):
-        m_file(file), m_line(line)
-    {}
-};
-
-#define TC_REQUIRE(EXPR) \
-if (!(EXPR))\
-{\
-    throw TestException(__FILE__, __LINE__); \
-}
-
-
-#define TC_REQUIRE_NO_THROW(EXPR) \
-try\
-{\
-    EXPR;\
-}\
-catch (...)\
-{\
-    throw TestException(__FILE__, __LINE__);\
-}
-
-#define TC_REQUIRE_THROW(EXPR, TYPE) \
-{\
-    bool thrown = false;\
-    try\
-    {\
-        EXPR;\
-    }\
-    catch (const TYPE& e)\
-    {\
-        thrown = true;\
-    }\
-    if (!thrown)\
-    {\
-        throw TestException(__FILE__, __LINE__);\
-    }\
-}
-
-time_t timeFromString(const std::string& str)
-{
-    struct tm timeStruct = {0};
-    strptime(str.c_str(), "%Y-%m-%d %H:%M:%S", &timeStruct);
-    return mktime(&timeStruct);
-}
-
-struct RateEntity
-{
-    time_t m_from;
-    bool m_toSet = false;
-    time_t m_to;
-    double m_rate;
-    RateEntity(const time_t from, const double rate):
-        m_from(from), m_rate(rate)
-    {}
-    RateEntity(const time_t from, const time_t to, const double rate):
-        m_from(from), m_toSet(true), m_to(to), m_rate(rate)
-    {}
-};
-typedef std::list<RateEntity> RateList;
-
-static void fillPOSTransactionManager(
-    POSTransactionManager& mng,
-    const std::string& baseCurrency,
-    const std::string& currency,
-    const RateList& rateList)
-{
-    Result res;
-    for (const auto& rate : rateList)
-    {
-        if (rate.m_toSet)
-        {
-            res = mng.addExchangeRate(baseCurrency, currency, rate.m_from, rate.m_to, rate.m_rate);
-        }
-        else
-        {
-            res = mng.addExchangeRate(baseCurrency, currency, rate.m_from, rate.m_rate);
-        }
-        TC_REQUIRE(Result::SUCCESS == res);
-    }
-}
 
 void tc_init()
 {
@@ -131,6 +45,22 @@ void tc_addExchangeRateFailed()
     Result res = mng.addExchangeRate(
         currecy1, currecy2,
         timeFromString("2000-1-1 00:00:00"), timeFromString("2000-1-2 00:00:00"),
+        1);
+    TC_REQUIRE(Result::CURRENCY_NOT_MATCH == res);
+
+    // valid dates
+    // not valid currency
+    res = mng.addExchangeRate(
+        currecy1, currecy1,
+        timeFromString("2000-1-1 00:00:00"), timeFromString("2000-1-2 00:00:00"),
+        1);
+    TC_REQUIRE(Result::CURRENCY_NOT_MATCH == res);
+
+    // valid date
+    // not valid currency
+    res = mng.addExchangeRate(
+        currecy1, currecy2,
+        timeFromString("2000-1-1 00:00:00"),
         1);
     TC_REQUIRE(Result::CURRENCY_NOT_MATCH == res);
 
@@ -177,6 +107,63 @@ void tc_addExchangeRateSuccess()
             rateList.emplace_back(fromDate, toDate, rate);
             rateTrendToCheck.emplace(fromDate, rate);
         }
+        double rate = i + rand() % 1000 / 1000.;
+        time_t fromDate = timeFromString("2000-1-" + std::to_string(i) + " 00:00:00");
+        rateList.emplace_back(fromDate, rate);
+        rateTrendToCheck.emplace(fromDate, rate);
+        
+        fillPOSTransactionManager(mng, baseCurrency, currency1, rateList);
+        auto currencyTrendMap = mng.getExchangeRates();
+        auto currencyIt = currencyTrendMap.find(currency1);
+        TC_REQUIRE(currencyTrendMap.end() != currencyIt);
+        TC_REQUIRE(currencyIt->second == rateTrendToCheck);
+    }
+
+    {
+        std::string baseCurrency("USD");
+        std::string currency1("RUR");
+        POSTransactionManager mng(baseCurrency);
+
+        RateList rateList;
+        POSTransactionManager::RateTrend rateTrendToCheck;
+        int i;
+        for (i = 0; i < 29; ++i)
+        {
+            double rate = i + rand() % 1000 / 1000.;
+            time_t fromDate = timeFromString("2000-1-" + std::to_string(i) + " 00:00:00");
+            time_t toDate = timeFromString("2000-1-" + std::to_string(i + 1) + " 00:00:00");
+            rateList.emplace_back(fromDate, toDate, rate);
+            rateTrendToCheck.emplace(fromDate, 1 / rate);
+        }
+        double rate = i + rand() % 1000 / 1000.;
+        time_t fromDate = timeFromString("2000-1-" + std::to_string(i) + " 00:00:00");
+        rateList.emplace_back(fromDate, rate);
+        rateTrendToCheck.emplace(fromDate, 1 / rate);
+        
+        fillPOSTransactionManager(mng, currency1, baseCurrency, rateList);
+        auto currencyTrendMap = mng.getExchangeRates();
+        auto currencyIt = currencyTrendMap.find(currency1);
+        TC_REQUIRE(currencyTrendMap.end() != currencyIt);
+        TC_REQUIRE(currencyIt->second == rateTrendToCheck);
+    }
+
+    {
+        std::string baseCurrency("USD");
+        std::string currency1("RUR");
+        POSTransactionManager mng(baseCurrency);
+
+        RateList rateList;
+        POSTransactionManager::RateTrend rateTrendToCheck;
+        int i;
+        for (i = 28; i >= 1; --i)
+        {
+            double rate = i + rand() % 1000 / 1000.;
+            time_t fromDate = timeFromString("2000-1-" + std::to_string(i) + " 00:00:00");
+            time_t toDate = timeFromString("2000-1-" + std::to_string(i + 1) + " 00:00:00");
+            rateList.emplace_back(fromDate, toDate, rate);
+            rateTrendToCheck.emplace(fromDate, rate);
+        }
+        i = 29;
         double rate = i + rand() % 1000 / 1000.;
         time_t fromDate = timeFromString("2000-1-" + std::to_string(i) + " 00:00:00");
         rateList.emplace_back(fromDate, rate);
@@ -343,116 +330,307 @@ void tc_convertPOSTransactionOtherToSame()
     }
 }
 
-void tc_convertPOSTransactionBaseToOther()
+void tc_convertPOSTransactionBaseOther()
 {
+    static constexpr size_t monthsCount = 5;
+
     std::string baseCurrency("USD");
     std::string currency1("RUR");
     std::string currency2("EUR");
     POSTransactionManager mng(baseCurrency);
 
     RateList rateList;
+    double rate[monthsCount];
 
     // the first month
-    time_t fromDate = timeFromString("2000-1-1 00:00:00");
-    time_t toDate = timeFromString("2000-2-1 00:00:00");
-    double rate1 = 1 + rand() % 1000 / 1000.;
-    rateList.emplace_back(fromDate, toDate, rate1);
+    int month = 1;
+
+    // the second month
+    ++ month;
+    time_t fromDate = timeFromString("2000-" + std::to_string(month) + "-1 00:00:00");
+    time_t toDate = timeFromString("2000-" + std::to_string(month + 1) + "-1 00:00:00");
+    rate[month - 1] = month - 1 + rand() % 1000 / 1000.;
+    rateList.emplace_back(fromDate, toDate, rate[month - 1]);
 
     // the third month
-    fromDate = timeFromString("2000-3-1 00:00:00");
-    toDate = timeFromString("2000-4-1 00:00:00");
-    double rate3 = 3 + rand() % 1000 / 1000.;
-    rateList.emplace_back(fromDate, toDate, rate3);
+    ++ month;
 
     // the fourth month
-    fromDate = timeFromString("2000-4-1 00:00:00");
-    toDate = timeFromString("2000-5-1 00:00:00");
+    ++ month;
+    fromDate = timeFromString("2000-" + std::to_string(month) + "-1 00:00:00");
+    toDate = timeFromString("2000-" + std::to_string(month + 1) + "-1 00:00:00");
+    rate[month - 1] = month - 1 + rand() % 1000 / 1000.;
+    rateList.emplace_back(fromDate, toDate, rate[month - 1]);
+
+    // the fifth month
+    ++ month;
+    fromDate = timeFromString("2000-" + std::to_string(month) + "-1 00:00:00");
+    toDate = timeFromString("2000-" + std::to_string(month + 1) + "-1 00:00:00");
     rateList.emplace_back(fromDate, toDate, -1);
 
     fillPOSTransactionManager(mng, baseCurrency, currency1, rateList);
 
+    Result monthResults[monthsCount] =
     {
-        // the first month
-        for (int i = 1; i < 31; ++i)
-        {
-            double total = rand() % 2000 / 1000.;
-            time_t date = timeFromString("2000-1-" + std::to_string(i) + " 00:00:00");
-            POSTransaction fromTransaction =
-                {total, baseCurrency, date};
-            POSTransaction toTransaction;
-            Result res = mng.convertPOSTransaction(
-                toTransaction,
-                fromTransaction,
-                currency1);
-            TC_REQUIRE(Result::SUCCESS == res);
-            TC_REQUIRE(toTransaction.m_total == total * rate1);
-            TC_REQUIRE(toTransaction.m_currency == currency1);
-            TC_REQUIRE(toTransaction.m_date == date);
-        }
+        Result::NO_RATE,
+        Result::SUCCESS,
+        Result::NO_RATE,
+        Result::SUCCESS,
+        Result::NO_RATE,
+    };
 
-        // the second month
+    for (int month = 0; month < monthsCount; ++month)
+    {
         for (int i = 1; i < 29; ++i)
         {
             double total = rand() % 2000 / 1000.;
-            time_t date = timeFromString("2000-2-" + std::to_string(i) + " 00:00:00");
-            POSTransaction fromTransaction =
-                {total, baseCurrency, date};
-            POSTransaction toTransaction;
-            Result res = mng.convertPOSTransaction(
-                toTransaction,
-                fromTransaction,
-                currency1);
-            TC_REQUIRE(Result::NO_RATE == res);
+            time_t date = timeFromString("2000-" + std::to_string(month + 1) + "-" + std::to_string(i) + " 00:00:00");
+            {
+                // base -> other
+                POSTransaction fromTransaction =
+                    {total, baseCurrency, date};
+                POSTransaction toTransaction;
+                Result res = mng.convertPOSTransaction(
+                    toTransaction,
+                    fromTransaction,
+                    currency1);
+                TC_REQUIRE(monthResults[month] == res);
+                if (Result::SUCCESS == res)
+                {
+                    TC_REQUIRE(toTransaction.m_total == total * rate[month]);
+                    TC_REQUIRE(toTransaction.m_currency == currency1);
+                    TC_REQUIRE(toTransaction.m_date == date);
+                }
+            }
+            {
+                // other -> base
+                POSTransaction fromTransaction =
+                    {total, currency1, date};
+                POSTransaction toTransaction;
+                Result res = mng.convertPOSTransaction(
+                    toTransaction,
+                    fromTransaction,
+                    baseCurrency);
+                TC_REQUIRE(monthResults[month] == res);
+                if (Result::SUCCESS == res)
+                {
+                    TC_REQUIRE(toTransaction.m_total == total / rate[month]);
+                    TC_REQUIRE(toTransaction.m_currency == baseCurrency);
+                    TC_REQUIRE(toTransaction.m_date == date);
+                }
+            }
         }
+    }
 
-        // the third month
-        for (int i = 1; i < 31; ++i)
+    for (int i = 1; i < 29; ++i)
+    {
+        double total = rand() % 2000 / 1000.;
+        time_t date = timeFromString("2000-1-" + std::to_string(i) + " 00:00:00");
         {
-            double total = rand() % 2000 / 1000.;
-            time_t date = timeFromString("2000-3-" + std::to_string(i) + " 00:00:00");
             POSTransaction fromTransaction =
                 {total, baseCurrency, date};
             POSTransaction toTransaction;
             Result res = mng.convertPOSTransaction(
                 toTransaction,
                 fromTransaction,
-                currency1);
-            TC_REQUIRE(Result::SUCCESS == res);
-            TC_REQUIRE(toTransaction.m_total == total * rate3);
-            TC_REQUIRE(toTransaction.m_currency == currency1);
-            TC_REQUIRE(toTransaction.m_date == date);
+                currency2);
+            TC_REQUIRE(Result::NO_CURRENCY == res);
         }
-
-        // the fourth month
-        for (int i = 1; i < 31; ++i)
         {
-            double total = rand() % 2000 / 1000.;
-            time_t date = timeFromString("2000-4-" + std::to_string(i) + " 00:00:00");
             POSTransaction fromTransaction =
-                {total, baseCurrency, date};
+                {total, currency2, date};
             POSTransaction toTransaction;
             Result res = mng.convertPOSTransaction(
                 toTransaction,
                 fromTransaction,
-                currency1);
-            TC_REQUIRE(Result::NO_RATE == res);
+                baseCurrency);
+            TC_REQUIRE(Result::NO_CURRENCY == res);
         }
     }
 }
 
-typedef std::function<void(void)> TestCaseFunc;
-struct TestCase
+void tc_convertPOSTransactionOtherOther()
 {
-    std::string m_name;
-    TestCaseFunc m_func;
-};
+    static constexpr size_t monthsCount = 5;
+
+    std::string baseCurrency("USD");
+    std::string currency1("RUR");
+    std::string currency2("EUR");
+    std::string currency3("GBP");
+    POSTransactionManager mng(baseCurrency);
+
+    std::pair<double, double> rate[monthsCount];
+    {
+        // currency #1
+        RateList rateList;
+
+        // the first month
+        int month = 1;
+
+        // the second month
+        ++ month;
+        time_t fromDate = timeFromString("2000-" + std::to_string(month) + "-1 00:00:00");
+        time_t toDate = timeFromString("2000-" + std::to_string(month + 1) + "-1 00:00:00");
+        rate[month - 1].first = month - 1 + rand() % 1000 / 1000.;
+        rateList.emplace_back(fromDate, toDate, rate[month - 1].first);
+
+        // the third month
+        ++ month;
+        fromDate = timeFromString("2000-" + std::to_string(month) + "-1 00:00:00");
+        toDate = timeFromString("2000-" + std::to_string(month + 1) + "-1 00:00:00");
+        rate[month - 1].first = month - 1 + rand() % 1000 / 1000.;
+        rateList.emplace_back(fromDate, toDate, rate[month - 1].first);
+
+        // the fourth month
+        ++ month;
+
+        // the fifth month
+        ++ month;
+        fromDate = timeFromString("2000-" + std::to_string(month) + "-1 00:00:00");
+        toDate = timeFromString("2000-" + std::to_string(month + 1) + "-1 00:00:00");
+        rateList.emplace_back(fromDate, toDate, -1);
+
+        fillPOSTransactionManager(mng, baseCurrency, currency1, rateList);
+    }
+
+    {
+        // currency #2
+        RateList rateList;
+
+        // the first month
+        int month = 1;
+
+        // the second month
+        ++ month;
+
+        // the third month
+        ++ month;
+        time_t fromDate = timeFromString("2000-" + std::to_string(month) + "-1 00:00:00");
+        time_t toDate = timeFromString("2000-" + std::to_string(month + 1) + "-1 00:00:00");
+        rate[month - 1].second = month - 1 + rand() % 1000 / 1000.;
+        rateList.emplace_back(fromDate, toDate, rate[month - 1].second);
+
+        // the fourth month
+        ++ month;
+        fromDate = timeFromString("2000-" + std::to_string(month) + "-1 00:00:00");
+        toDate = timeFromString("2000-" + std::to_string(month + 1) + "-1 00:00:00");
+        rate[month - 1].second = month - 1 + rand() % 1000 / 1000.;
+        rateList.emplace_back(fromDate, toDate, rate[month - 1].second);
+
+        // the fifth month
+        ++ month;
+
+        fillPOSTransactionManager(mng, baseCurrency, currency2, rateList);
+    }
+
+
+    Result monthResults[monthsCount] =
+    {
+        Result::NO_RATE,
+        Result::NO_RATE,
+        Result::SUCCESS,
+        Result::NO_RATE,
+        Result::NO_RATE,
+    };
+
+    for (int month = 0; month < monthsCount; ++month)
+    {
+        for (int i = 1; i < 29; ++i)
+        {
+            double total = rand() % 2000 / 1000.;
+            time_t date = timeFromString("2000-" + std::to_string(month + 1) + "-" + std::to_string(i) + " 00:00:00");
+            {
+                // base -> other
+                POSTransaction fromTransaction =
+                    {total, currency1, date};
+                POSTransaction toTransaction;
+                Result res = mng.convertPOSTransaction(
+                    toTransaction,
+                    fromTransaction,
+                    currency2);
+                TC_REQUIRE(monthResults[month] == res);
+                if (Result::SUCCESS == res)
+                {
+                    TC_REQUIRE(toTransaction.m_total == total / rate[month].first * rate[month].second);
+                    TC_REQUIRE(toTransaction.m_currency == currency2);
+                    TC_REQUIRE(toTransaction.m_date == date);
+                }
+            }
+            {
+                // other -> base
+                POSTransaction fromTransaction =
+                    {total, currency2, date};
+                POSTransaction toTransaction;
+                Result res = mng.convertPOSTransaction(
+                    toTransaction,
+                    fromTransaction,
+                    currency1);
+                TC_REQUIRE(monthResults[month] == res);
+                if (Result::SUCCESS == res)
+                {
+                    TC_REQUIRE(toTransaction.m_total == total / rate[month].second * rate[month].first);
+                    TC_REQUIRE(toTransaction.m_currency == currency1);
+                    TC_REQUIRE(toTransaction.m_date == date);
+                }
+            }
+        }
+    }
+
+    for (int i = 1; i < 29; ++i)
+    {
+        double total = rand() % 2000 / 1000.;
+        time_t date = timeFromString("2000-3-" + std::to_string(i) + " 00:00:00");
+        {
+            POSTransaction fromTransaction =
+                {total, currency1, date};
+            POSTransaction toTransaction;
+            Result res = mng.convertPOSTransaction(
+                toTransaction,
+                fromTransaction,
+                currency3);
+            TC_REQUIRE(Result::NO_CURRENCY == res);
+        }
+        {
+            POSTransaction fromTransaction =
+                {total, currency2, date};
+            POSTransaction toTransaction;
+            Result res = mng.convertPOSTransaction(
+                toTransaction,
+                fromTransaction,
+                currency3);
+            TC_REQUIRE(Result::NO_CURRENCY == res);
+        }
+        {
+            POSTransaction fromTransaction =
+                {total, currency3, date};
+            POSTransaction toTransaction;
+            Result res = mng.convertPOSTransaction(
+                toTransaction,
+                fromTransaction,
+                currency1);
+            TC_REQUIRE(Result::NO_CURRENCY == res);
+        }
+        {
+            POSTransaction fromTransaction =
+                {total, currency3, date};
+            POSTransaction toTransaction;
+            Result res = mng.convertPOSTransaction(
+                toTransaction,
+                fromTransaction,
+                currency2);
+            TC_REQUIRE(Result::NO_CURRENCY == res);
+        }
+    }
+}
+
 static std::vector<TestCase> tests =
 {
-    { "init", tc_init },
-    { "addExchangeRateFailed", tc_addExchangeRateFailed },
-    { "addExchangeRate", tc_addExchangeRateSuccess },
-    { "convertPOSTransactionOtherToSame", tc_convertPOSTransactionOtherToSame },
-    { "convertPOSTransactionBaseToOther", tc_convertPOSTransactionBaseToOther },
+    TEST_CASE(tc_init),
+    TEST_CASE(tc_addExchangeRateFailed),
+    TEST_CASE(tc_addExchangeRateSuccess),
+    TEST_CASE(tc_convertPOSTransactionOtherToSame),
+    TEST_CASE(tc_convertPOSTransactionBaseOther),
+    TEST_CASE(tc_convertPOSTransactionOtherOther),
 };
 
 } // namespace test

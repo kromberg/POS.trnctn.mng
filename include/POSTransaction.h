@@ -54,13 +54,13 @@ public:
         T2&& toCurrency,
         const time_t fromDate,
         const time_t toDate,
-        double rate = -1);
+        double rate);
     template<class T1, class T2>
     Result addExchangeRate(
         T1&& fromCurrency,
         T2&& toCurrency,
         const time_t fromDate,
-        double rate = -1);
+        double rate);
     // get copy of currency trend
     CurrencyTrendMap getExchangeRates() const;
     template<class T>
