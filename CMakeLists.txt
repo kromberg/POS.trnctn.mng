@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 2.6.0)
 
 project(exchange.rate C CXX)
 
-set(COVERAGE 1)
-
 # set compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O0 -g -Wall -Werror")
 if(COVERAGE)
@@ -30,4 +28,9 @@ add_executable(${PROJECT_NAME} ${SRC_ALL})
 # tests
 add_executable(${PROJECT_NAME}.test ${TEST_SRC_ALL})
 
-#find . -name "*.gcda" -print0 | xargs -0 rm
+#add_custom_target(coverage 
+#    COMMAND bash -c "lcov --capture --directory . --output-file coverage.info && genhtml coverage.info --output-directory coverage")
+
+#add_custom_target(clean-coverage 
+#    COMMAND bash -c "find . -name "*.gcda" -print0 | xargs -0 rm")
+
