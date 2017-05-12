@@ -28,9 +28,18 @@ add_executable(${PROJECT_NAME} ${SRC_ALL})
 # tests
 add_executable(${PROJECT_NAME}.test ${TEST_SRC_ALL})
 
-#add_custom_target(coverage 
-#    COMMAND bash -c "lcov --capture --directory . --output-file coverage.info && genhtml coverage.info --output-directory coverage")
+if(COVERAGE)
+    set(COVERAGE_FILE coverage.info)
+    set(COVERAGE_DIR coverage)
 
-#add_custom_target(clean-coverage 
-#    COMMAND bash -c "find . -name "*.gcda" -print0 | xargs -0 rm")
+    add_custom_command(OUTPUT coverage.info
+        COMMAND bash -c "lcov --capture --directory . --output-file ${COVERAGE_FILE}")
+    add_custom_target(coverage
+        COMMAND bash -c "genhtml ${COVERAGE_FILE} --output-directory ${COVERAGE_DIR}"
+        DEPENDS coverage.info)
 
+    add_custom_target(clean-coverage 
+        #COMMAND bash -c "find . -name \"*.gcda\" -print0 | xargs -0 rm"
+        COMMAND ${CMAKE_COMMAND} remove_directory ${COVERAGE_DIR}
+        COMMAND ${CMAKE_COMMAND} remove ${COVERAGE_FILE})
+endif()
