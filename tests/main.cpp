@@ -5,7 +5,7 @@
 #include <tuple>
 
 #include <POSTransaction.h>
-#include "Utils.h"
+#include "TestUtils.h"
 
 namespace pos
 {

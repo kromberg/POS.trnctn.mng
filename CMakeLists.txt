@@ -11,16 +11,23 @@ endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 list(APPEND SRC_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src)
+list(APPEND TEST_SRC_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src)
 list(APPEND TEST_SRC_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 
-foreach (_dir ${SRC_DIRS})
+foreach(_dir ${SRC_DIRS})
     file(GLOB_RECURSE _src ${_dir}/*.cpp)
     list(APPEND SRC_ALL ${_src})
 endforeach()
 
-foreach (_dir ${TEST_SRC_DIRS})
+foreach(_dir ${TEST_SRC_DIRS})
     file(GLOB_RECURSE _src ${_dir}/*.cpp)
     list(APPEND TEST_SRC_ALL ${_src})
+endforeach()
+
+foreach(_src ${TEST_SRC_ALL})
+    if(_src MATCHES .*/src/main.cpp)
+        list(REMOVE_ITEM TEST_SRC_ALL ${_src})
+    endif()
 endforeach()
 
 # main app
@@ -39,7 +46,7 @@ if(COVERAGE)
         DEPENDS coverage.info)
 
     add_custom_target(clean-coverage 
-        #COMMAND bash -c "find . -name \"*.gcda\" -print0 | xargs -0 rm"
-        COMMAND ${CMAKE_COMMAND} remove_directory ${COVERAGE_DIR}
-        COMMAND ${CMAKE_COMMAND} remove ${COVERAGE_FILE})
+        COMMAND bash -c "${CMAKE_CURRENT_SOURCE_DIR}/clean_coverage.bash ./"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${COVERAGE_DIR}
+        COMMAND ${CMAKE_COMMAND} -E remove ${COVERAGE_FILE})
 endif()

@@ -35,17 +35,17 @@ std::string currency("RUR");
 POSTransactionManager mng(baseCurrency);
 // USD->RUB [2000-1-1; 2000-1-2) -> 100
 mng.addExchangeRate(
-    baseCurrency, currecy,
+    baseCurrency, currency,
     timeFromString("2000-1-1 00:00:00"), timeFromString("2000-1-2 00:00:00"),
     100.);
 // RUB->USD [2000-2-1; 2000-3-1) -> 0.011
 mng.addExchangeRate(
-    currecy, baseCurrency,
+    currency, baseCurrency,
     timeFromString("2000-2-1 00:00:00"), timeFromString("2000-3-1 00:00:00"),
     0.011);
 // RUB->USD [2000-3-1; +infinity) -> 0.012
 mng.addExchangeRate(
-    currecy, baseCurrency,
+    currency, baseCurrency,
     timeFromString("2000-3-1 00:00:00"),
     0.012);
 // error
@@ -55,10 +55,12 @@ mng.addExchangeRate(
     0.11);
 ```
 
-## Currncy trend can be copied for output or other reasons
+## Currency trend can be copied for output or other reasons
+
+```c++
 // get copy of currency trend
 CurrencyTrendMap getExchangeRates() const;
-
+```
 
 ## Converting POS Transactions
 
@@ -127,6 +129,6 @@ mng.addExchangeRate(
 SUCCESS - success
 INVALID_DATE - invalid date(s) specified (from >= to)
 CURRENCY_NOT_MATCH - one of currencies does not match base one
-SAME_CURRECY - same currency specified while adding rate
+SAME_currency - same currency specified while adding rate
 NO_CURRENCY - no currency found for conversion in manager
 NO_RATE - no rate found for conversion in manager

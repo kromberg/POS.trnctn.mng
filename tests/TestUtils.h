@@ -59,13 +59,6 @@ catch (...)\
 #define TEST_CASE(NAME)\
     { #NAME, NAME }
 
-static time_t timeFromString(const std::string& str)
-{
-    struct tm timeStruct = {0};
-    strptime(str.c_str(), "%Y-%m-%d %H:%M:%S", &timeStruct);
-    return mktime(&timeStruct);
-}
-
 struct RateEntity
 {
     time_t m_from;
