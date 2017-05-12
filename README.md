@@ -126,9 +126,20 @@ mng.addExchangeRate(
 
 ## Possible results
 
-SUCCESS - success
-INVALID_DATE - invalid date(s) specified (from >= to)
-CURRENCY_NOT_MATCH - one of currencies does not match base one
-SAME_currency - same currency specified while adding rate
-NO_CURRENCY - no currency found for conversion in manager
-NO_RATE - no rate found for conversion in manager
+* SUCCESS - success
+* INVALID_DATE - invalid date(s) specified (from >= to)
+* CURRENCY_NOT_MATCH - one of currencies does not match base one
+* SAME_currency - same currency specified while adding rate
+* NO_CURRENCY - no currency found for conversion in manager
+* NO_RATE - no rate found for conversion in manager
+
+## Build
+
+```bash
+mkdir build
+cd build
+cmake .. or cmake -DCOVERAGE=1 ..
+make
+./exchange.rate to run examples
+./exchange.rate.test to run tests
+```
