@@ -142,4 +142,6 @@ cmake .. or cmake -DCOVERAGE=1 ..
 make
 ./exchange.rate to run examples
 ./exchange.rate.test to run tests
+make coverage to collect coverage into ./coverage directory
+make clean-coverage to clean converage and *.gcda files
 ```
